@@ -4,6 +4,6 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class TareaApp: Application(){
+class GeremyDelosSantos_P2_Ap2App: Application(){
 
 }
