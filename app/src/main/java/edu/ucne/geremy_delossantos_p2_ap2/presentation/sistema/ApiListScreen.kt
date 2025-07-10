@@ -19,20 +19,27 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import edu.ucne.geremy_delossantos_p2_ap2.remote.dto.ContributorDto
 import edu.ucne.geremy_delossantos_p2_ap2.remote.dto.RepositoryDto
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.*
 
 @Composable
 fun ApiListScreen(
     state: ApiUIState,
     onCreate: () -> Unit,
-    onItemClick: (RepositoryDto) -> Unit
+    onItemClick: (RepositoryDto) -> Unit,
+    onLoadContributors: (String, String) -> Unit,
+    contributors: List<ContributorDto>,
+    isContributorLoading: Boolean,
+    contributorError: String?,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var debouncedQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(searchQuery) {
+        @OptIn(FlowPreview::class)
         snapshotFlow { searchQuery }
             .debounce(400)
             .collectLatest { debouncedQuery = it }
@@ -77,6 +84,26 @@ fun ApiListScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            val fuenteDatos = when {
+                state.isLoading -> "Cargando..."
+                state.errorMessage != null -> "Mostrando datos locales (Room)"
+                else -> "Mostrando datos desde API"
+            }
+
+            val fuenteColor = when {
+                state.isLoading -> Color.DarkGray
+                state.errorMessage != null -> Color.Red
+                else -> Color(0xFF388E3C)
+            }
+
+            Text(
+                text = fuenteDatos,
+                color = fuenteColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Spacer(modifier = Modifier.padding(top = 24.dp))
 
             OutlinedTextField(
@@ -105,7 +132,101 @@ fun ApiListScreen(
                         items(filteredList) { repo ->
                             RepositoryRow(
                                 repo = repo,
-                                onClick = { onItemClick(repo) }
+                                onClick = {
+                                    onItemClick(repo)
+                                    onLoadContributors("enelramon", repo.name)
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Contribuyentes:",
+                        style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    ContributorList(
+                        contributors = contributors,
+                        isLoading = isContributorLoading,
+                        error = contributorError
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ContributorList(
+    contributors: List<ContributorDto>,
+    isLoading: Boolean,
+    error: String?
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp)
+    ) {
+        Text(
+            text = "Contribuyentes",
+            style = TextStyle(
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E88E5)
+            ),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        when {
+            isLoading -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            error != null -> {
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            contributors.isEmpty() -> {
+                Text(
+                    text = "No hay contribuyentes",
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            else -> {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.heightIn(max = 250.dp)
+                ) {
+                    items(contributors) { contributor ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.LightGray.copy(alpha = 0.2f))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = contributor.login,
+                                fontSize = 16.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "Contribuciones: ${contributor.contributions}",
+                                fontSize = 14.sp,
+                                color = Color.DarkGray
                             )
                         }
                     }
@@ -114,6 +235,7 @@ fun ApiListScreen(
         }
     }
 }
+
 
 @Composable
 fun RepositoryRow(
@@ -148,27 +270,4 @@ fun RepositoryRow(
             )
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun RepositoryListScreenPreview() {
-    val sampleRepos = remember {
-        mutableStateListOf(
-            RepositoryDto(name = "Repository1", description = "Primer Repositorio", htmlUrl = "https://github.com/repo1"),
-            RepositoryDto(name = "Repository2", description = "Segundo Repositorio", htmlUrl = "https://github.com/repo2"),
-            RepositoryDto(name = "Repository3", description = null, htmlUrl = "https://github.com/repo3")
-        )
-    }
-    val state = ApiUIState(
-        api = sampleRepos
-    )
-
-    ApiListScreen(
-        state = state,
-        onCreate = { sampleRepos.add(
-            RepositoryDto(name = "NuevoRepo", description = "Descripción nueva", htmlUrl = "https://github.com/nuevo")
-        ) },
-        onItemClick = { }
-    )
 }

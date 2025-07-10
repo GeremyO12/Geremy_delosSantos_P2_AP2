@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,21 +29,25 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.ucne.geremy_delossantos_p2_ap2.remote.dto.ContributorDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApiScreen(
     state: ApiUIState,
     onSave: (String, String, String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onGetContributors: (String) -> Unit,
+    contributors: List<ContributorDto>,
+    isLoading: Boolean,
+    error: String?
 ) {
     var name by remember { mutableStateOf(state.name) }
     var description by remember { mutableStateOf(state.description) }
     var htmlUrl by remember { mutableStateOf(state.htmlUrl) }
-    var error by remember { mutableStateOf<String?>(state.inputError) }
+    var inputError by remember { mutableStateOf<String?>(state.inputError) }
 
     Scaffold(
         topBar = {
@@ -98,7 +103,7 @@ fun ApiScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
                 )
 
-                error?.let {
+                inputError?.let {
                     Text(
                         text = it,
                         color = MaterialTheme.colorScheme.error,
@@ -121,11 +126,12 @@ fun ApiScreen(
                     Button(
                         onClick = {
                             when {
-                                name.isBlank() -> error = "El nombre es requerido"
-                                htmlUrl.isBlank() -> error = "La URL es requerida"
+                                name.isBlank() -> inputError = "El nombre es requerido"
+                                htmlUrl.isBlank() -> inputError = "La URL es requerida"
                                 else -> {
-                                    error = null
+                                    inputError = null
                                     onSave(name, description, htmlUrl)
+                                    onGetContributors(name) // nombre del repositorio
                                 }
                             }
                         },
@@ -136,17 +142,31 @@ fun ApiScreen(
                         Text("Guardar")
                     }
                 }
+
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                }
+
+                error?.let {
+                    Text(
+                        text = it,
+                        color = Color.Red,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                if (contributors.isNotEmpty()) {
+                    Text(
+                        text = "Contribuyentes:",
+                        style = TextStyle(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    contributors.forEach {
+                        Text("- ${it.login}")
+                    }
+                }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ApiScreenPreview() {
-    ApiScreen(
-        state = ApiUIState(),
-        onSave = { name, description, htmlUrl -> println("Nuevo repo: $name, $description, $htmlUrl") },
-        onCancel = { println("Cancelado") }
-    )
-}
